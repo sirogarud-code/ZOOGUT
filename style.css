@@ -294,7 +294,7 @@ textarea:focus-visible {
   .header {
     padding: 6px 12px;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;          /* БІЛЬШЕ НЕ ДАЄМО ПЕРЕНОСИТИСЯ */
     align-items: center;
   }
 
@@ -309,12 +309,12 @@ textarea:focus-visible {
   .header-right {
     margin-left: auto;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;          /* в один ряд */
+    gap: 4px;
   }
 
   #langSel {
-    padding: 4px 8px;
+    padding: 4px 6px;
     font-size: 12px;
   }
 
@@ -331,20 +331,28 @@ textarea:focus-visible {
   }
 }
 
+
 @media (max-width: 480px) {
   .header {
-    align-items: flex-start;
+    padding: 6px 8px;
+    align-items: center;       /* знову по центру */
   }
 
   .header-right {
-    width: 100%;
+    width: auto;               /* НЕ розтягуємо на всю ширину */
     justify-content: flex-end;
   }
 
   .page {
     padding: 8px 12px 16px;
   }
+
+  .hero {
+    margin: 10px 0 20px;
+    padding: 20px 16px 18px;
+  }
 }
+
 
 /* =========================
    HERO
@@ -633,16 +641,17 @@ textarea:focus-visible {
   }
 }
 
-/* single column for very narrow screens (small phones) */
+/* телефони ~360–414px — теж 2 картки в ряд */
 @media (max-width: 420px) {
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .card-thumb {
     height: 120px;
   }
 }
+
 
 .card {
   background: radial-gradient(circle at top, #111827 0%, #020617 70%);
