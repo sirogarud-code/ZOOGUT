@@ -446,6 +446,47 @@ const I18N = {
     footer_made_by: "Built for learning frontend"
   }
 };
+/* ---------- ПЛАВНА ПОЯВА СТОРІНКИ ---------- */
+
+window.addEventListener("load", () => {
+  document.body.classList.add("page-loaded");
+});
+
+/* ---------- Scroll-reveal (анімація при скролі) ---------- */
+
+let scrollRevealObserver = null;
+
+function initScrollReveal() {
+  // Якщо IntersectionObserver немає — просто показуємо все
+  if (!("IntersectionObserver" in window)) {
+    document.querySelectorAll(".reveal-on-scroll").forEach(el => {
+      el.classList.add("sr-visible");
+    });
+    return;
+  }
+
+  if (!scrollRevealObserver) {
+    scrollRevealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("sr-visible");
+          // Анімуємо елемент один раз
+          scrollRevealObserver.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.15,
+      rootMargin: "0px 0px -10% 0px"
+    });
+  }
+
+  document.querySelectorAll(".reveal-on-scroll").forEach(el => {
+    if (!el.dataset.srInit) {
+      el.dataset.srInit = "1";
+      scrollRevealObserver.observe(el);
+    }
+  });
+}
 
 
 /* ---------- описи товарів для різних мов ---------- */
@@ -738,8 +779,45 @@ let userReviews = [];
 let reviewsPage = 1;
 
 // коментарі до конкретних товарів
-let productComments = {}; // { productId: [ { name, text, createdAt } ] }
+let productComments = {}; // { productId: [ { name, text, createdAt, userId, userEmail } ] }
 let currentProductId = null;
+
+/* ---------- User / LS helpers ---------- */
+
+// генерація унікального ID користувача
+function generateUserId() {
+  const part = () => Math.random().toString(16).slice(2, 6).toUpperCase();
+  return `ZOO-${part()}-${part()}`;
+}
+
+// зберігаємо список користувачів у localStorage
+function loadUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_USERS) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(LS_USERS, JSON.stringify(users));
+}
+
+// дуже просте "хешування" пароля (для демо)
+function hashPassword(pwd) {
+  return btoa(pwd || "");
+}
+
+// поточний користувач береться з змінної currentUser
+function setCurrentUser(user) {
+  currentUser = user;
+  if (user) {
+    localStorage.setItem(LS_USER, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(LS_USER);
+  }
+  updateAccountTitle();
+}
 
 /* ---------- LS helpers ---------- */
 
@@ -754,6 +832,19 @@ function loadLS() {
     currentUser.id = generateUserId();
     localStorage.setItem(LS_USER, JSON.stringify(currentUser));
   }
+
+  // міграція для старих користувачів у LS_USERS
+  try {
+    const users = loadUsers();
+    let changed = false;
+    users.forEach(u => {
+      if (!u.id) {
+        u.id = generateUserId();
+        changed = true;
+      }
+    });
+    if (changed) saveUsers(users);
+  } catch {}
 
   const savedReviews = localStorage.getItem(LS_REVIEWS);
   if (savedReviews) {
@@ -789,32 +880,17 @@ function saveLS() {
   localStorage.setItem(LS_PCOMMENTS, JSON.stringify(productComments));
 }
 
-// генерація унікального ID користувача (одна, без дублювання)
-function generateUserId() {
-  const part = () => Math.random().toString(16).slice(2, 6).toUpperCase();
-  return `ZOO-${part()}-${part()}`;
+// збережені замовлення (тільки для демо)
+function loadOrders() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_ORDERS) || "[]");
+  } catch {
+    return [];
+  }
 }
 
-/* ---------- допоміжне форматування дати для коментарів ---------- */
-
-function formatCommentDate(ts) {
-  if (!ts) return "";
-  const localeMap = {
-    uk: "uk-UA",
-    ru: "ru-RU",
-    en: "en-US"
-  };
-  const locale = localeMap[currentLang] || "uk-UA";
-  try {
-    const d = new Date(ts);
-    return d.toLocaleDateString(locale, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    });
-  } catch {
-    return "";
-  }
+function saveOrders(orders) {
+  localStorage.setItem(LS_ORDERS, JSON.stringify(orders));
 }
 
 /* ---------- каталог ---------- */
@@ -939,7 +1015,7 @@ function renderGrid() {
             <button class="card-icon js-fav ${inFav ? "active" : ""}" title="Обране" aria-label="Додати до обраного">❤️</button>
             <button class="card-icon js-cmp ${inCmp ? "active" : ""}" title="Порівняти" aria-label="Додати до порівняння">⚖️</button>
           </div>
-          <button class="btn primary card-btn js-add" type="button" aria-label="Додати в кошик">У кошик</button>
+          <button class="btn primary card-btn js-add" type="button">У кошик</button>
         </div>
       </article>
     `;
@@ -970,7 +1046,6 @@ function ensureMinReviews(minCount) {
   const need = Math.max(0, minCount - all.length);
   if (need <= 0) return;
 
-  // create simple clones of default reviews and store them in userReviews so they persist
   for (let i = 0; i < need; i++) {
     const src = defaults[i % defaults.length];
     const clone = {
@@ -1225,12 +1300,6 @@ function renderCart() {
   }).join("");
   const tot = $("#cartTotal");
   if (tot) tot.textContent = moneyUAH(total);
-
-  // демо-пояснення
-  const demoNoteEl = $("#cartDemoNote");
-  if (demoNoteEl) {
-    demoNoteEl.textContent = "У демо-версії дані не надсилаються на сервер, замовлення зберігаються тільки у вашому браузері.";
-  }
 }
 
 function changeQty(id, delta) {
@@ -1259,45 +1328,87 @@ function closeCart() {
   drawer.classList.remove("is-open");
 }
 
+/* ---------- checkout modal (серйозне оформлення замовлення) ---------- */
+
+function renderOrderSummaryModal() {
+  const listEl  = $("#orderSummaryItems");
+  const totalEl = $("#orderSummaryTotal");
+  const countEl = $("#orderSummaryCount");
+  if (!listEl) return;
+
+  if (!cart.length) {
+    listEl.innerHTML =
+      '<div style="font-size:13px;color:#9ca3af;">Кошик порожній.</div>';
+    if (totalEl) totalEl.textContent = moneyUAH(0);
+    if (countEl) countEl.textContent = "0";
+    return;
+  }
+
+  let total = 0;
+  let count = 0;
+
+  listEl.innerHTML = cart.map(item => {
+    const qty = Number(item.qty || 1);
+    const price = Number(item.price || 0);
+    const sum = qty * price;
+    total += sum;
+    count += qty;
+    return `
+      <div class="order-summary-item">
+        <div>
+          <div class="order-summary-title">${escapeHtml(item.title || "")}</div>
+          <div class="order-summary-meta">ID: ${escapeHtml(item.id || "")}</div>
+        </div>
+        <div>x${qty}</div>
+        <div>${moneyUAH(price)}</div>
+        <div>${moneyUAH(sum)}</div>
+      </div>
+    `;
+  }).join("");
+
+  if (totalEl) totalEl.textContent = moneyUAH(total);
+  if (countEl) countEl.textContent = String(count);
+}
+
+function openOrderModal() {
+  const modal = $("#orderModal");
+  if (!modal) return;
+  closeCart();
+  renderOrderSummaryModal();
+  modal.classList.add("is-open");
+}
+
+function closeOrderModal() {
+  const modal = $("#orderModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+}
+
 /* ---------- auth ---------- */
 
-// зберігаємо список користувачів у localStorage
-function loadUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_USERS) || "[]");
-  } catch {
-    return [];
-  }
-}
+function updateAccountTitle() {
+  const btn = document.getElementById("accountBtn");
+  if (!btn) return;
 
-function saveUsers(users) {
-  localStorage.setItem(LS_USERS, JSON.stringify(users));
-}
-
-// дуже просте "хешування" пароля (для демо)
-function hashPassword(pwd) {
-  return btoa(pwd); // не безпечно, але для навчального проєкту ок
-}
-
-// поточний користувач береться з змінної currentUser (її ми вже завантажуємо в loadLS())
-function setCurrentUser(user) {
-  currentUser = user;
-  if (user) {
-    localStorage.setItem(LS_USER, JSON.stringify(user));
+  if (currentUser) {
+    const title = currentUser.id
+      ? `${currentUser.email} • ID: ${currentUser.id}`
+      : currentUser.email;
+    btn.setAttribute("title", title);
+    btn.setAttribute("aria-label", "Особистий кабінет");
   } else {
-    localStorage.removeItem(LS_USER);
+    btn.setAttribute("title", "Вхід / Кабінет");
+    btn.setAttribute("aria-label", "Вхід / Кабінет");
   }
-  updateAccountTitle();
 }
 
 function openAuth() {
   const modal = document.getElementById("authModal");
-  const form  = document.getElementById("authForm");
   const emailInput = document.getElementById("authEmail");
   const passInput  = document.getElementById("authPassword");
   const hint = document.getElementById("authHint");
 
-  if (!modal || !form || !emailInput || !passInput) return;
+  if (!modal || !emailInput || !passInput) return;
 
   if (currentUser && currentUser.email) {
     emailInput.value = currentUser.email;
@@ -1315,22 +1426,6 @@ function closeAuth() {
   const modal = document.getElementById("authModal");
   if (!modal) return;
   modal.classList.remove("is-open");
-}
-
-function updateAccountTitle() {
-  const btn = document.getElementById("accountBtn");
-  if (!btn) return;
-
-  if (currentUser) {
-    const title = currentUser.id
-      ? `${currentUser.email} • ID: ${currentUser.id}`
-      : currentUser.email;
-    btn.setAttribute("title", title);
-    btn.setAttribute("aria-label", "Особистий кабінет");
-  } else {
-    btn.setAttribute("title", "Вхід / Кабінет");
-    btn.setAttribute("aria-label", "Вхід / Кабінет");
-  }
 }
 
 /* ---------- nav scroll ---------- */
@@ -1383,6 +1478,16 @@ function initNavScroll() {
 
 /* ---------- product modal + comments ---------- */
 
+function formatCommentDate(ts) {
+  if (!ts) return "";
+  try {
+    const d = new Date(ts);
+    return d.toLocaleDateString("uk-UA");
+  } catch {
+    return "";
+  }
+}
+
 function renderProductComments(productId) {
   const listEl  = $("#pmCommentsList");
   const emptyEl = $("#pmCommentsEmptyText");
@@ -1402,10 +1507,10 @@ function renderProductComments(productId) {
   listEl.innerHTML = items.map(c => {
     const dateStr = formatCommentDate(c.createdAt);
     return `
-      <div class="pm-comment-item">
-        <div class="pm-comment-name">
-          ${escapeHtml(c.name || "Анонім")}
-          ${dateStr ? `<span style="font-size:11px;color:#9ca3af;margin-left:6px;">${escapeHtml(dateStr)}</span>` : ""}
+      <div class="pm-comment">
+        <div class="pm-comment-header">
+          <span class="pm-comment-author">${escapeHtml(c.name || "Анонім")}</span>
+          ${dateStr ? `<span class="pm-comment-date">${escapeHtml(dateStr)}</span>` : ""}
         </div>
         <div class="pm-comment-text">${escapeHtml(c.text || "")}</div>
       </div>
@@ -1436,7 +1541,6 @@ function openProductModalById(id) {
     if (p.img) {
       imgEl.src = p.img;
       imgEl.alt = p.title;
-      imgEl.loading = "lazy";
     } else {
       imgEl.src = "";
       imgEl.alt = "";
@@ -1469,7 +1573,6 @@ function openProductModalById(id) {
     descEl.textContent = getProductDescription(p);
   }
 
-  // переклад кнопки "показати/сховати коментарі"
   const pmCommentsBody = $("#pmCommentsBody");
   const pmCommentsToggleBtn = $("#pmCommentsToggleBtn");
   const dict = I18N[currentLang] || I18N.uk;
@@ -1489,25 +1592,86 @@ function closeProductModal() {
   modal.classList.remove("is-open");
 }
 
+/* ---------- Сторінка реєстрації (register.html) ---------- */
+
+function initRegisterPage() {
+  const form = document.getElementById("registerForm");
+  if (!form) return; // ми не на сторінці реєстрації
+
+  const nameInput     = document.getElementById("regName");
+  const emailInput    = document.getElementById("regEmail");
+  const passInput     = document.getElementById("regPassword");
+  const pass2Input    = document.getElementById("regPasswordConfirm");
+  const phoneInput    = document.getElementById("regPhone");
+  const cityInput     = document.getElementById("regCity");
+  const errorBox      = document.getElementById("registerError");
+
+  function showError(msg) {
+    if (errorBox) errorBox.textContent = msg || "";
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    showError("");
+
+    const name  = (nameInput?.value || "").trim();
+    const email = (emailInput?.value || "").trim();
+    const pass  = (passInput?.value || "").trim();
+    const pass2 = (pass2Input?.value || "").trim();
+    const phone = (phoneInput?.value || "").trim();
+    const city  = (cityInput?.value || "").trim();
+
+    if (!name || !email || !pass || !pass2) {
+      showError("Заповніть усі обов’язкові поля (*).");
+      return;
+    }
+
+    if (pass !== pass2) {
+      showError("Паролі не співпадають.");
+      return;
+    }
+
+    const emailRe = /\S+@\S+\.\S+/;
+    if (!emailRe.test(email)) {
+      showError("Некоректний e-mail.");
+      return;
+    }
+
+    const users = loadUsers();
+    const exists = users.some(
+      u => (u.email || "").toLowerCase() === email.toLowerCase()
+    );
+    if (exists) {
+      showError("Користувач з таким email вже існує. Спробуйте увійти.");
+      return;
+    }
+
+    const user = {
+      id: generateUserId(),
+      createdAt: new Date().toISOString(),
+      email,
+      name,
+      passwordHash: hashPassword(pass),
+      phone: phone || null,
+      city: city || null
+    };
+
+    users.push(user);
+    saveUsers(users);
+    setCurrentUser(user);
+
+    alert(`Ви успішно зареєструвались як ${email}. Ваш ID: ${user.id} (демо).`);
+
+    window.location.href = "index.html";
+  });
+}
+
 /* ---------- INIT ---------- */
 
 document.addEventListener("DOMContentLoaded", () => {
   // товари з data.js
   if (typeof loadProductsFromLS === "function") {
     loadProductsFromLS();
-  }
-
-  // збережені замовлення (тільки для демо)
-  function loadOrders() {
-    try {
-      return JSON.parse(localStorage.getItem(LS_ORDERS) || "[]");
-    } catch {
-      return [];
-    }
-  }
-
-  function saveOrders(orders) {
-    localStorage.setItem(LS_ORDERS, JSON.stringify(orders));
   }
 
   loadLS();
@@ -1523,7 +1687,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderGrid();
       renderReviews();
 
-      // якщо модалка відкрита – оновити опис та тексти
       const modal = $("#productModal");
       if (modal && modal.classList.contains("is-open") && currentProductId) {
         openProductModalById(currentProductId);
@@ -1609,7 +1772,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderCmp();
         updateBadges();
       } else {
-        // клікнули по картці, але не по кнопках — відкриваємо модалку
         openProductModalById(id);
       }
     });
@@ -1708,89 +1870,154 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ---- НОВИЙ checkout через модалку ----
   const cartCheckoutBtn = $("#cartCheckoutBtn");
   if (cartCheckoutBtn) {
     cartCheckoutBtn.addEventListener("click", () => {
-      if (!cart.length) return;
-
-      // простий "чекаут" через prompt'и (для демо) з базовою валідацією
-      const dict = I18N[currentLang] || I18N.uk;
-
-      const name = prompt("Введіть, будь ласка, ваше ім’я:", currentUser?.email || "");
-      if (name === null || !name.trim()) {
-        alert("Будь ласка, вкажіть ім’я.");
+      if (!cart.length) {
+        alert("Кошик порожній.");
         return;
       }
 
-      const city = prompt("Введіть місто доставки:", "");
-      if (city === null || !city.trim()) {
-        alert("Будь ласка, вкажіть місто.");
+      // якщо модалка існує – відкриваємо її
+      if ($("#orderModal")) {
+        openOrderModal();
+      } else {
+        // fallback: старий варіант з prompt, якщо модалки немає
+        const name = prompt("Введіть, будь ласка, ваше ім’я:", currentUser?.email || "");
+        if (name === null || !name.trim()) return;
+
+        const phone = prompt("Введіть номер телефону для зв’язку:", "");
+        if (phone === null || !phone.trim()) return;
+
+        const comment = prompt("Коментар до замовлення (адреса, зручний час тощо):", "") || "";
+
+        const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const orderId = "ZF-" + Date.now().toString(36).toUpperCase();
+
+        const order = {
+          id: orderId,
+          createdAt: new Date().toISOString(),
+          name: name.trim(),
+          phone: phone.trim(),
+          comment: comment.trim(),
+          items: cart.map(i => ({
+            id: i.id,
+            title: i.title,
+            price: i.price,
+            qty: i.qty
+          })),
+          total,
+          userId: currentUser ? currentUser.id : null,
+          userEmail: currentUser ? currentUser.email : null,
+          status: "new"
+        };
+
+        const orders = loadOrders();
+        orders.push(order);
+        saveOrders(orders);
+
+        cart = [];
+        saveLS();
+        renderCart();
+        updateBadges();
+        closeCart();
+
+        alert(
+          `Дякуємо, ${name.trim()}!\n\n` +
+          `Ваше замовлення №${orderId} оформлено (демо).\n` +
+          `Сума: ${moneyUAH(total)}.\n\n` +
+          `У реальному магазині менеджер зв’язався б з вами за телефоном ${phone.trim()}.`
+        );
+      }
+    });
+  }
+
+  // обробка форми модалки, якщо вона є
+  const orderModalEl   = $("#orderModal");
+  const orderForm      = $("#orderForm");
+  const orderCloseBtn  = $("#btnCloseOrderModal");
+  const orderCancelBtn = $("#btnCancelOrder");
+  const orderHint      = $("#orderFormHint");
+
+  if (orderModalEl) {
+    orderModalEl.addEventListener("click", e => {
+      if (e.target === orderModalEl) {
+        closeOrderModal();
+      }
+    });
+  }
+
+  if (orderCloseBtn) {
+    orderCloseBtn.addEventListener("click", closeOrderModal);
+  }
+  if (orderCancelBtn) {
+    orderCancelBtn.addEventListener("click", closeOrderModal);
+  }
+
+  if (orderForm) {
+    orderForm.addEventListener("submit", e => {
+      e.preventDefault();
+      if (!cart.length) {
+        if (orderHint) orderHint.textContent = "Кошик порожній.";
         return;
       }
 
-      const phone = prompt("Введіть номер телефону для зв’язку:", "");
-      if (phone === null || !phone.trim()) {
-        alert("Будь ласка, вкажіть номер телефону.");
+      const name    = ($("#ofName")?.value || "").trim();
+      const phone   = ($("#ofPhone")?.value || "").trim();
+      const email   = ($("#ofEmail")?.value || "").trim();
+      const city    = ($("#ofCity")?.value || "").trim();
+      const delivery = $("#ofDelivery")?.value || "nova_poshta";
+      const payment  = $("#ofPayment")?.value || "card";
+      const comment  = ($("#ofComment")?.value || "").trim();
+
+      if (!name || !phone || !city) {
+        if (orderHint) orderHint.textContent = "Заповніть ім’я, телефон і місто / відділення.";
         return;
       }
 
-      // базова перевірка формату телефона
-      const phoneClean = phone.trim();
-      const phonePattern = /^\+?\d[\d\s\-()]{8,}$/;
-      if (!phonePattern.test(phoneClean)) {
-        alert("Схоже, номер телефону вказано у неподібному до реального форматі.\nСпробуйте ще раз, наприклад: +380 67 123 45 67");
-        return;
-      }
-
-      const comment = prompt("Коментар до замовлення (адреса, зручний час тощо):", "") || "";
-
-      // рахуємо суму
       const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-      // створюємо об’єкт замовлення
       const orderId = "ZF-" + Date.now().toString(36).toUpperCase();
 
       const order = {
         id: orderId,
         createdAt: new Date().toISOString(),
-        name: name.trim(),
-        city: city.trim(),
-        phone: phoneClean,
-        comment: comment.trim(),
+        name,
+        phone,
+        comment: `${city} | Доставка: ${delivery}, оплата: ${payment}${comment ? " | " + comment : ""}`,
         items: cart.map(i => ({
           id: i.id,
           title: i.title,
           price: i.price,
           qty: i.qty
         })),
-        total
+        total,
+        userId: currentUser ? currentUser.id : null,
+        userEmail: email || (currentUser ? currentUser.email : null),
+        status: "new"
       };
 
-      // зберігаємо в localStorage
       const orders = loadOrders();
       orders.push(order);
       saveOrders(orders);
 
-      // очищаємо кошик
       cart = [];
       saveLS();
       renderCart();
       updateBadges();
-      closeCart();
 
-      alert(
-        `Дякуємо, ${name.trim()}!\n\n` +
-        `Ваше замовлення №${orderId} оформлено (демо).\n` +
-        `Місто: ${city.trim()}\n` +
-        `Сума: ${moneyUAH(total)}.\n\n` +
-        `У реальному магазині менеджер зв’язався б з вами за телефоном ${phoneClean}.\n\n` +
-        `Нагадуємо: це демо-версія, дані не надсилаються на сервер.`
-      );
+      if (orderHint) {
+        orderHint.textContent = "Замовлення оформлено! Дякуємо 💚";
+      }
+      setTimeout(() => {
+        if (orderHint) orderHint.textContent = "";
+        closeOrderModal();
+      }, 1500);
     });
   }
 
   // акаунт / авторизація
-  updateAccountTitle(); // оновити підпис на кнопці при завантаженні
+  updateAccountTitle();
 
   const accountBtn = document.getElementById("accountBtn");
   const authModal = document.getElementById("authModal");
@@ -1798,18 +2025,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (accountBtn && authModal) {
     accountBtn.addEventListener("click", () => {
-      openAuth();
+      authModal.classList.add("is-open");
     });
 
     authCloseBtns.forEach(btn => {
       btn.addEventListener("click", () => {
-        closeAuth();
+        authModal.classList.remove("is-open");
       });
     });
 
     authModal.addEventListener("click", (e) => {
       if (e.target === authModal) {
-        closeAuth();
+        authModal.classList.remove("is-open");
       }
     });
   }
@@ -1820,33 +2047,50 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const emailInput = document.getElementById("authEmail");
       const passInput  = document.getElementById("authPassword");
-      if (!emailInput || !passInput) return;
+      const hint       = document.getElementById("authHint");
 
-      const email = emailInput.value.trim();
-      const pass  = passInput.value.trim();
-      if (!email || !pass) return;
+      const email = (emailInput?.value || "").trim();
+      const pass  = (passInput?.value || "").trim();
 
-      // якщо вже є користувач з таким email – залишаємо його id
-      let id = currentUser && currentUser.email === email && currentUser.id
-        ? currentUser.id
-        : generateUserId();
+      if (!email || !pass) {
+        if (hint) hint.textContent = "Заповніть e-mail та пароль.";
+        return;
+      }
 
-      currentUser = { id, email };
-      saveLS();
-      updateAccountTitle();
+      const users = loadUsers();
+      const user = users.find(
+        u => (u.email || "").toLowerCase() === email.toLowerCase()
+      );
 
-      const hint = document.getElementById("authHint");
+      if (!user) {
+        if (hint) {
+          hint.textContent = "Користувача з таким email не знайдено. Зареєструйтесь.";
+        }
+        return;
+      }
+
+      if (hashPassword(pass) !== user.passwordHash) {
+        if (hint) {
+          hint.textContent = "Невірний пароль.";
+        }
+        return;
+      }
+
+      setCurrentUser(user);
       if (hint) {
-        hint.textContent = "Ви увійшли як " + email + " (ID: " + id + ", демо, без сервера).";
+        hint.textContent = `Ви увійшли як ${user.email} (ID: ${user.id}, демо).`;
         setTimeout(() => {
           hint.textContent = "";
           closeAuth();
         }, 900);
+      } else {
+        closeAuth();
       }
     });
   }
 
   // форма відгуку (глобальні)
+
   const reviewForm = $("#reviewForm");
   const reviewFormWrapper = $("#reviewFormWrapper");
   const reviewToggleBtn = $("#reviewToggleBtn");
@@ -1860,19 +2104,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (reviewForm) {
     reviewForm.addEventListener("submit", e => {
       e.preventDefault();
-      const nameInput   = $("#reviewName");
-      const petInput    = $("#reviewPet");
-      const cityInput   = $("#reviewCity");
-      const ratingInput = $("#reviewRating");
-      const textInput   = $("#reviewText");
-
-      if (!textInput) return;
-
-      const name  = nameInput ? (nameInput.value.trim() || "Анонім") : "Анонім";
-      const pet   = petInput ? petInput.value.trim() : "";
-      const city  = cityInput ? cityInput.value.trim() : "";
-      const rating = Number(ratingInput && ratingInput.value || 5);
-      const text  = textInput.value.trim();
+      const name  = $("#reviewName").value.trim() || "Анонім";
+      const pet   = $("#reviewPet").value.trim();
+      const city  = $("#reviewCity").value.trim();
+      const rating = Number($("#reviewRating").value || 5);
+      const text  = $("#reviewText").value.trim();
       if (!text) return;
 
       userReviews.unshift({
@@ -1881,7 +2117,9 @@ document.addEventListener("DOMContentLoaded", () => {
         city,
         rating,
         text,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        userId: currentUser ? currentUser.id : null,
+        userEmail: currentUser ? currentUser.email : null
       });
 
       if (userReviews.length > 20) {
@@ -1892,7 +2130,8 @@ document.addEventListener("DOMContentLoaded", () => {
       reviewsPage = 1;
       renderReviews();
       reviewForm.reset();
-      if (ratingInput) ratingInput.value = "5";
+      const ratingSel = $("#reviewRating");
+      if (ratingSel) ratingSel.value = "5";
 
       const dict = I18N[currentLang] || I18N.uk;
       const hint = $("#reviewHint");
@@ -2027,7 +2266,9 @@ document.addEventListener("DOMContentLoaded", () => {
       list.unshift({
         name,
         text,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        userId: currentUser ? currentUser.id : null,
+        userEmail: currentUser ? currentUser.email : null
       });
       productComments[currentProductId] = list;
       saveLS();
@@ -2067,11 +2308,15 @@ document.addEventListener("DOMContentLoaded", () => {
       closeCmp();
       closeAuth();
       closeProductModal();
+      closeOrderModal();
       if (typeof closeSupport === "function") {
         closeSupport();
       }
     }
   });
+
+  // ініт сторінки реєстрації
+  initRegisterPage();
 });
 
 /* ---------- Соцмережі та оплата у футері ---------- */
@@ -2106,41 +2351,239 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
-    // очищаємо поточного користувача
     currentUser = null;
     localStorage.removeItem(LS_USER);
 
     alert("Ви успішно вийшли з акаунту!");
 
-    // оновлюємо стан кнопки акаунту
     updateAccountTitle();
 
-    const accountBtnEl = document.getElementById("accountBtn");
-    if (accountBtnEl) {
-      accountBtnEl.classList.remove("active");
+    const accountBtn2 = document.getElementById("accountBtn");
+    if (accountBtn2) {
+      accountBtn2.classList.remove("active");
     }
 
-    // закриваємо модалку
-    const authModalEl = document.getElementById("authModal");
-    if (authModalEl) {
-      authModalEl.classList.remove("is-open");
+    const authModal2 = document.getElementById("authModal");
+    if (authModal2) {
+      authModal2.classList.remove("is-open");
     }
   });
 }
 
-/* ---------- fallback для зображень (якщо не завантажилися) ---------- */
+/* =========================================
+   РЕЄСТРАЦІЯ НА СТОРІНЦІ register.html (дубль, якщо відкрито окремо)
+   ========================================= */
 
-document.addEventListener("error", (event) => {
-  const el = event.target;
-  if (
-    el &&
-    el.tagName === "IMG" &&
-    (el.closest(".card-thumb") || el.closest(".fav-thumb") || el.id === "pmImg")
-  ) {
-    const parent = el.parentNode;
-    if (parent) {
-      parent.removeChild(el);
-      parent.textContent = "🐾";
+document.addEventListener("DOMContentLoaded", () => {
+  const regForm = document.getElementById("registerForm");
+  if (!regForm) return; // ми не на сторінці реєстрації
+
+  const nameInput  = document.getElementById("regName");
+  const emailInput = document.getElementById("regEmail");
+  const passInput  = document.getElementById("regPassword");
+  const pass2Input = document.getElementById("regPassword2");
+  const phoneInput = document.getElementById("regPhone");
+  const cityInput  = document.getElementById("regCity");
+  const errorBox   = document.getElementById("regError");
+
+  regForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (errorBox) errorBox.textContent = "";
+
+    const name  = nameInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
+    const pass  = passInput.value;
+    const pass2 = pass2Input.value;
+    const phone = phoneInput.value.trim();
+    const city  = cityInput.value.trim();
+
+    // базова валідація
+    if (!name || !email || !pass || !pass2) {
+      if (errorBox) errorBox.textContent = "Заповніть усі обов’язкові поля.";
+      return;
+    }
+
+    if (pass !== pass2) {
+      if (errorBox) errorBox.textContent = "Паролі не співпадають.";
+      return;
+    }
+
+    // проста перевірка e-mail
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) {
+      if (errorBox) errorBox.textContent = "Некоректний e-mail.";
+      return;
+    }
+
+    // читаємо вже існуючих користувачів
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem(LS_USERS) || "[]");
+    } catch {
+      users = [];
+    }
+
+    // перевіряємо, чи немає користувача з таким email
+    const existing = users.find(u => u.email.toLowerCase() === email);
+    if (existing) {
+      if (errorBox) {
+        errorBox.textContent =
+          "Користувач з таким email вже існує. Спробуйте увійти.";
+      }
+      return;
+    }
+
+    // створюємо нового користувача
+    const user = {
+      id: generateUserId(),                 // береться з app.js
+      createdAt: new Date().toISOString(),
+      email,
+      name,
+      passwordHash: btoa(pass),             // тільки для демо
+      phone: phone || null,
+      city: city || null
+    };
+
+    users.push(user);
+    localStorage.setItem(LS_USERS, JSON.stringify(users));
+    localStorage.setItem(LS_USER, JSON.stringify(user));
+
+    alert(
+      `Акаунт створено!\n\n` +
+      `E-mail: ${email}\n` +
+      `ID: ${user.id}\n\n` +
+      `Це демо – дані зберігаються лише у вашому браузері.`
+    );
+
+    // редірект на головну
+    window.location.href = "index.html";
+  });
+});
+/* =========================================
+   ПЛАВНІ ЕФЕКТИ ДЛЯ САЙТУ (без нових файлів)
+   ========================================= */
+
+/* ---------- 1. Плавна поява всієї сторінки ---------- */
+// Коли все (HTML + картинки + шрифти) завантажилось – додаємо клас
+window.addEventListener("load", () => {
+  document.body.classList.add("page-loaded");
+});
+
+/* ---------- 2. Плавна поява блоків при скролі ---------- */
+
+(function () {
+  let zfScrollObserver = null;
+
+  function createScrollObserver() {
+    if (!("IntersectionObserver" in window)) {
+      // Якщо браузер старий – просто показати всі елементи
+      document.querySelectorAll(".reveal-on-scroll").forEach((el) => {
+        el.classList.add("sr-visible");
+      });
+      return null;
+    }
+
+    return new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("sr-visible");
+            zfScrollObserver.unobserve(entry.target); // анімація тільки один раз
+          }
+        });
+      },
+      {
+        threshold: 0.15,
+        rootMargin: "0px 0px -10% 0px"
+      }
+    );
+  }
+
+  function applyRevealToTargets() {
+    if (!zfScrollObserver) return;
+
+    const selectors = [
+      // основні секції (перевір, що такі id є в твоєму index.html)
+      "#hero",
+      "#store",
+      "#reviews",
+      "#faq",
+      "#contacts",
+      ".contacts-strip",
+      ".benefits-section",
+      // картки товарів
+      ".card"
+    ];
+
+    selectors.forEach((sel) => {
+      document.querySelectorAll(sel).forEach((el) => {
+        if (!el.classList.contains("reveal-on-scroll")) {
+          el.classList.add("reveal-on-scroll");
+        }
+        if (!el.dataset.srInit) {
+          el.dataset.srInit = "1";
+          zfScrollObserver.observe(el);
+        }
+      });
+    });
+  }
+
+  function initScrollReveal() {
+    zfScrollObserver = createScrollObserver();
+    if (!zfScrollObserver) return;
+
+    // одразу підвісити на вже існуючі елементи
+    applyRevealToTargets();
+
+    // якщо оновлюється список товарів (#grid) – підвісити на нові картки
+    const grid = document.getElementById("grid");
+    if (grid && "MutationObserver" in window) {
+      const mo = new MutationObserver(() => {
+        applyRevealToTargets();
+      });
+      mo.observe(grid, { childList: true, subtree: true });
     }
   }
-}, true);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initScrollReveal();
+  });
+})();
+// ========= ПЛАВНА ПОЯВА СТОРІНКИ + БЛОКІВ =========
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 1) плавна поява всієї сторінки (.page)
+  const pageEl = document.querySelector(".page");
+  if (pageEl) {
+    // маленька затримка, щоб браузер встиг застосувати початкові стилі
+    requestAnimationFrame(() => {
+      pageEl.classList.add("page-loaded");
+    });
+  }
+
+  // 2) елементи, які мають клас .reveal-on-scroll
+  const revealEls = document.querySelectorAll(".reveal-on-scroll");
+  if (!revealEls.length) return;
+
+  // якщо браузер підтримує IntersectionObserver — робимо плавну появу
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("sr-visible");
+            observer.unobserve(entry.target); // анімація тільки 1 раз
+          }
+        });
+      },
+      {
+        threshold: 0.15 // 15% елемента у в'юпорті — запускаємо анімацію
+      }
+    );
+
+    revealEls.forEach(el => observer.observe(el));
+  } else {
+    // старі браузери — просто одразу показуємо
+    revealEls.forEach(el => el.classList.add("sr-visible"));
+  }
+});
