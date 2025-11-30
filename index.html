@@ -26,80 +26,56 @@
   <!-- =========================
        HEADER
        ========================= -->
-  <header class="header">
-    <div class="logo">ZooFeed</div>
+ <header class="header">
+  <div class="logo">ZOOFEED</div>
 
-    <nav class="nav" aria-label="Основна навігація">
-      <a href="#store" data-nav="store" data-i18n="nav_shop" class="is-active">
-        Магазин
-      </a>
-      <a href="#about" data-nav="about" data-i18n="nav_about">Про нас</a>
-      <a href="#reviews" data-nav="reviews" data-i18n="nav_reviews">Відгуки</a>
-      <a href="#faq" data-nav="faq" data-i18n="nav_faq">FAQ</a>
-      <a href="#contacts" data-nav="contacts" data-i18n="nav_contacts">
-        Контакти
-      </a>
-    </nav>
+  <nav class="nav">
+    <a href="#store" data-nav="store" class="is-active" data-i18n="nav_shop">Магазин</a>
+    <a href="#about" data-nav="about" data-i18n="nav_about">Про нас</a>
+    <a href="#reviews" data-nav="reviews" data-i18n="nav_reviews">Відгуки</a>
+    <a href="#faq" data-nav="faq" data-i18n="nav_faq">FAQ</a>
+    <a href="#contacts" data-nav="contacts" data-i18n="nav_contacts">Контакти</a>
+  </nav>
 
-    <div class="header-right">
-      <select id="langSel" aria-label="Вибір мови">
-        <option value="uk">UA</option>
-        <option value="ru">RU</option>
-        <option value="en">EN</option>
-      </select>
+  <div class="header-right">
+    <!-- вибір мови -->
+    <select id="langSel">
+      <option value="uk">UA</option>
+      <option value="ru">RU</option>
+      <option value="en">EN</option>
+    </select>
 
-      <!-- Обране -->
-      <div class="badge-btn">
-        <button
-          id="favBtn"
-          type="button"
-          aria-label="Відкрити список обраного"
-          title="Обране"
-        >
-          ⭐
-        </button>
-        <span id="favCount" class="badge">0</span>
-      </div>
-
-      <!-- Порівняння -->
-      <div class="badge-btn">
-        <button
-          id="cmpBtn"
-          type="button"
-          aria-label="Відкрити список порівняння"
-          title="Порівняння"
-        >
-          ⚖️
-        </button>
-        <span id="cmpCount" class="badge">0</span>
-      </div>
-
-      <!-- Кошик -->
-      <div class="badge-btn">
-        <button
-          id="cartBtn"
-          type="button"
-          aria-label="Відкрити кошик"
-          title="Кошик"
-        >
-          🛒
-        </button>
-        <span id="cartCount" class="badge">0</span>
-      </div>
-
-      <!-- Особистий кабінет -->
-      <button
-        id="accountBtn"
-        type="button"
-        class="btn ghost"
-        aria-label="Вхід / Кабінет"
-        title="Вхід / Кабінет"
-      >
-        👤
-        <span data-i18n="auth_title">Особистий кабінет</span>
+    <!-- Обране -->
+    <div class="badge-btn">
+      <button id="favBtn" type="button" aria-label="Обране">
+        ⭐
       </button>
+      <div class="badge" id="favCount">0</div>
     </div>
-  </header>
+
+    <!-- Порівняння -->
+    <div class="badge-btn">
+      <button id="cmpBtn" type="button" aria-label="Порівняння">
+        ⚖️
+      </button>
+      <div class="badge" id="cmpCount">0</div>
+    </div>
+
+    <!-- Кошик -->
+    <div class="badge-btn">
+      <button id="cartBtn" type="button" aria-label="Кошик">
+        🛒
+      </button>
+      <div class="badge" id="cartCount">0</div>
+    </div>
+
+    <!-- КНОПКА ОСОБИСТОГО КАБІНЕТУ -->
+    <button id="accountBtn" class="btn ghost" type="button">
+      <span style="margin-right:6px">👤</span>
+      <span data-i18n="auth_title">Особистий кабінет</span>
+    </button>
+  </div>
+</header>
 
   <!-- =========================
        PAGE WRAPPER
@@ -868,82 +844,92 @@
   </div>
 
   <!-- =========================
-       AUTH MODAL (Особистий кабінет)
-       ========================= -->
-  <div id="authModal">
-    <div class="auth-dialog" role="dialog" aria-modal="true">
-      <button
-        type="button"
-        class="cart-close-btn"
-        data-auth-close
-        aria-label="Закрити особистий кабінет"
-      >
-        ✕
-      </button>
+   <!-- AUTH MODAL -->
+<div id="authModal">
+  <div class="auth-dialog">
+    <!-- Хрестик зверху -->
+    <button
+      type="button"
+      class="cart-close-btn"
+      data-auth-close
+      aria-label="Закрити"
+      style="position:absolute;top:14px;right:14px;"
+    >
+      ✕
+    </button>
 
-      <h2 class="auth-title" data-i18n="auth_title">
-        Особистий кабінет
-      </h2>
-      <p class="auth-subtitle" data-i18n="auth_subtitle">
-        Увійдіть або зареєструйтесь (демо).
-      </p>
+    <h2 class="auth-title" data-i18n="auth_title">Особистий кабінет</h2>
+    <p class="auth-subtitle" data-i18n="auth_subtitle">
+      Увійдіть або зареєструйтесь (демо).
+    </p>
 
-      <form id="authForm">
-        <div class="auth-field">
-          <label for="authEmail">E-mail</label>
-          <input
-            id="authEmail"
-            type="email"
-            autocomplete="email"
-            required
-          />
-        </div>
+    <form id="authForm">
+      <div class="auth-field">
+        <label for="authEmail">E-MAIL</label>
+        <input
+          id="authEmail"
+          type="email"
+          autocomplete="email"
+          required
+        />
+      </div>
 
-        <div class="auth-field">
-          <label
-            for="authPassword"
-            data-i18n="auth_password"
-          >
-            Пароль
-          </label>
-          <input
-            id="authPassword"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
-        </div>
+      <div class="auth-field">
+        <label for="authPassword" data-i18n="auth_password">Пароль</label>
+        <input
+          id="authPassword"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+      </div>
 
-        <div class="auth-actions">
-          <button
-            type="button"
-            class="btn ghost"
-            data-auth-close
-          >
-            Закрити
-          </button>
-          <button
-            type="submit"
-            class="btn primary"
-            data-i18n="auth_login_btn"
-          >
-            Увійти
-          </button>
-        </div>
-
-        <p id="authHint"></p>
-
+      <!-- кнопки Закрити + Увійти -->
+      <div class="auth-actions">
         <button
-          id="logoutBtn"
           type="button"
           class="btn ghost"
-          style="margin-top: 10px"
+          data-auth-close
         >
-          Вийти з акаунту
+          Закрити
         </button>
-      </form>
-    </div>
+
+        <button
+          type="submit"
+          class="btn primary"
+        >
+          <span data-i18n="auth_login_btn">Увійти</span>
+        </button>
+      </div>
+
+      <!-- ВЕЛИКА КНОПКА РЕЄСТРАЦІЇ -->
+      <div class="auth-actions" style="margin-top:10px;">
+        <a
+          href="register.html"
+          class="btn ghost"
+          style="flex:1;justify-content:center;text-align:center;"
+        >
+          Зареєструватися
+        </a>
+      </div>
+
+      <!-- підказки / помилки -->
+      <p id="authHint"></p>
+    </form>
+
+    <!-- Кнопка виходу з акаунту -->
+    <button
+      id="logoutBtn"
+      type="button"
+      class="btn ghost"
+      style="margin-top:12px;width:100%;"
+    >
+      Вийти з акаунту
+    </button>
   </div>
+</div>
+
+
 
   <!-- =========================
        FOOTER
@@ -1086,4 +1072,99 @@
   <script src="helpers.js"></script>
   <script src="app.js"></script>
 </body>
+<!-- Кнопка десь біля кошика -->
+
+<!-- Модальне вікно оформлення замовлення -->
+<div class="order-modal-backdrop" id="orderModal">
+  <div class="order-modal">
+    <div class="order-modal-header">
+      <div>
+        <h2>Оформлення замовлення</h2>
+        <p>Перевірте товари та заповніть контактні дані</p>
+      </div>
+      <button class="order-modal-close" id="btnCloseOrderModal">✕</button>
+    </div>
+
+    <div class="order-modal-content">
+      <!-- Ліва колонка: кошик -->
+      <div class="order-summary">
+        <h3>Ваше замовлення</h3>
+        <div class="order-summary-items" id="orderSummaryItems">
+          <!-- JS вставить позиції -->
+        </div>
+        <div class="order-summary-footer">
+          <div class="order-summary-row">
+            <span>Товарів:</span>
+            <span id="orderSummaryCount">0</span>
+          </div>
+          <div class="order-summary-row order-summary-total">
+            <span>Сума до оплати:</span>
+            <span id="orderSummaryTotal">0 ₴</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Права колонка: форма -->
+      <div class="order-form-box">
+        <form id="orderForm" autocomplete="off">
+          <div class="order-form-grid">
+            <label class="field">
+              <span>Ім’я та прізвище</span>
+              <input class="field-input" id="ofName" required />
+            </label>
+            <label class="field">
+              <span>Телефон</span>
+              <input class="field-input" id="ofPhone" placeholder="+38..." required />
+            </label>
+            <label class="field">
+              <span>E-mail (необов’язково)</span>
+              <input class="field-input" id="ofEmail" type="email" />
+            </label>
+            <label class="field">
+              <span>Місто / відділення</span>
+              <input class="field-input" id="ofCity" placeholder="Київ, Нова Пошта №..." required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Спосіб доставки</span>
+            <select class="field-input" id="ofDelivery">
+              <option value="nova_poshta">Нова Пошта</option>
+              <option value="ukrposhta">Укрпошта</option>
+              <option value="courier">Кур’єр по місту</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Оплата</span>
+            <select class="field-input" id="ofPayment">
+              <option value="card">Оплата на картку</option>
+              <option value="cod">Післяплата</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Коментар до замовлення</span>
+            <textarea class="field-input field-textarea" id="ofComment" rows="3"
+              placeholder="Наприклад: дзвонити після 18:00"></textarea>
+          </label>
+
+          <div class="edit-actions">
+            <div id="orderFormHint" class="form-hint"></div>
+            <div class="edit-actions-buttons">
+              <button type="button" class="btn ghost" id="btnCancelOrder">
+                Скасувати
+              </button>
+              <button type="submit" class="btn primary">
+                Підтвердити замовлення
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 </html>
